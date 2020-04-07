@@ -45,7 +45,8 @@ def getcolumn(arr, n):
 
 m = int(input("Введіть m: "))
 p = float(input("Введіть довірчу ймовірність: "))
-
+bzn, yzn, beta = [], [], []
+t=0
 rows = N = 8
 x1_min, x1_max = -20, 30
 x2_min, x2_max = -20, 40
@@ -317,6 +318,47 @@ else:
     cont = True
     print("Pівняння регресії неадекватно оригіналу при рівні значимості 0.05, додамо ефект взаємодії")
 
+
+# перевірка кохрена
+def kohren(S, m):
+    Gp = max(S) / sum(S)
+    f1 = m - 1
+    f2 = N
+    Gt = Critical_values.get_cohren_value(f2, f1, q)
+    if Gp > Gt:
+        m += 1
+        print("Дисперсія не однорідна, збільшуємо m")
+        if len(random_matrix_y[0]) < m:
+            for i in range(8):
+                random_matrix_y[i].append(random.randrange(Ymin, Ymax))
+    else:
+        print("Дисперсія однорідна")
+        return False
+
+
+# перевірка стюдента
+def Student(S, m, bzn, yzn, t, beta):
+    S_B = sum(S) / len(S)
+    S2_b = S_B / (m * len(S))
+    S_b = S2_b ** (1 / 2)
+    beta = tuple(sum(dob(getcolumn(matrix_x_cod, i), y1_full)) / 8 for i in range(8))
+    t = tuple(abs(i) / S_b for i in beta)
+    f3 = f1 * f2
+    Ft = cr.get_student_value(f3, q)
+    tbool = tuple(Ft < i for i in t)
+    bzn = tuple(bs1[i] if tbool[i] else 0 for i in range(8))
+    yzn = tuple(sum(dob(bzn, test[i])) for i in range(8))
+
+# Фішер
+def Fisher(S, m, bzn, yzn):
+    S_B = sum(S) / len(S)
+    d = tbool.count(True)
+    f4 = 8 - d
+    S2_ad = m * sum([(y1_full[i] - yzn[i]) ** 2 for i in range(8)]) / f4
+    Fp = S2_ad / S_B
+    Ft = cr.get_fisher_value(f3, f4, q)
+    return S2_ad
+
 # Ефект взаємодії
 if cont == True:
     while True:
@@ -393,38 +435,17 @@ if cont == True:
 
         # перевірка кохрена
         S = [sum([(y1_full[i] - random_matrix_y[j][i]) ** 2 for i in range(m)]) / m for j in range(N)]
-        Gp = max(S) / sum(S)
-        f1 = m - 1
-        f2 = N
-        Gt = Critical_values.get_cohren_value(f2, f1, q)
-        if Gp > Gt:
-            m += 1
-            print("Дисперсія не однорідна, збільшуємо m")
-            if len(random_matrix_y[0]) < m:
-                for i in range(8):
-                    random_matrix_y[i].append(random.randrange(Ymin, Ymax))
-        else:
-            print("Дисперсія однорідна")
+        cont = kohren(S, m)
+        if not cont:
             break
-    # Стьюдент
     S_B = sum(S) / len(S)
     S2_b = S_B / (m * len(S))
     S_b = S2_b ** (1 / 2)
-    beta = tuple(sum(dob(getcolumn(matrix_x_cod, i), y1_full)) / 8 for i in range(8))
-    t = tuple(abs(i) / S_b for i in beta)
-    f3 = f1 * f2
-    Ft = cr.get_student_value(f3, q)
-
-    tbool = tuple(Ft < i for i in t)
-    bzn = tuple(bs1[i] if tbool[i] else 0 for i in range(8))
-    yzn = tuple(sum(dob(bzn, test[i])) for i in range(8))
+    # Стьюдент
+    Student(S, m, bzn, yzn, t, beta)
 
     # Фішер
-    d = tbool.count(True)
-    f4 = 8 - d
-    S2_ad = m * sum([(y1_full[i] - yzn[i]) ** 2 for i in range(8)]) / f4
-    Fp = S2_ad / S_B
-    Ft = cr.get_fisher_value(f3, f4, q)
+    S2_ad = Fisher(S, m, bzn, yzn)
 
     print("\n")
     print("Перевірка за Кохреном")
